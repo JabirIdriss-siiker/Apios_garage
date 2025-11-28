@@ -1,0 +1,46 @@
+Crée-moi une application multi-tenant nommée “Apios_Garage” pour la gestion d’un garage automobile. L’objectif est un MVP rapide, avec code structuré et modulable pour évoluer facilement.
+pour les crud ne genere pas pour tout les pages
+
+🎯 MVP Fonctionnalités essentielles
+1️⃣ Authentification & Multi-tenant
+
+Connexion / inscription
+
+Chaque utilisateur appartient à 1 garage (tenant).
+
+Rôles : SUPERADMIN, TENANT_ADMIN, RECEPTION, MECHANIC, ACCOUNTANT.
+
+Middleware tenant pour isoler les données.
+
+Page /superadmin pour gérer tous les garages.
+
+2️⃣ Gestion Clients
+
+CRUD clients : nom, téléphone, email, adresse.
+
+Liste avec recherche et filtres simples.
+
+Historique véhicules / interventions.
+5️⃣ Planning / RDV
+
+Vue calendrier simplifiée (jour / semaine) pour interventions.
+
+Assignation mécanicien.
+
+Page publique de booking : garage.com/booking → choix prestation + créneau + validation.
+8️⃣ Dashboard simple
+
+Tenant Admin Dashboard : chiffre d’affaires, interventions du jour, stock bas, clients récents.
+
+Superadmin Dashboard : nombre de garages, chiffre d’affaires global.
+Palette de Couleurs intégrée
+Couleurs Principales
+--color-primary: 15 23 42;        /* slate-900 - Navigation, textes importants /
+--color-primary-light: 30 41 59;  / slate-800 - Hover states /
+--color-accent: 249 115 22;       / orange-500 - CTAs, highlights /
+--color-accent-light: 251 146 60; / orange-400 - Hover states */
+
+Couleurs Sémantiques
+--color-success: 34 197 94;       /* green-500 - validations, statuts positifs /
+--color-warning: 234 179 8;       / yellow-500 - alertes, stock bas /
+--color-danger: 239 68 68;        / red-500 - erreurs, actions destructives */
