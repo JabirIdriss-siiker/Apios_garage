@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Users, LogOut, Menu, X, Car, Calendar, Wrench, Settings } from 'lucide-react';
+import { Building2, Users, LogOut, Menu, X, Car, Calendar, Wrench, Settings, FileText } from 'lucide-react';
 import ClientsPage from './ClientsPage';
 import VehiclesPage from './VehiclesPage';
 import PlanningPage from './PlanningPage';
 import ServicesPage from './ServicesPage';
 import InterventionsPage from './InterventionsPage';
+import FacturationPage from './FacturationPage';
 import type { Database } from '../lib/database.types';
 
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -20,8 +21,8 @@ export default function TenantDashboard() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [recentClients, setRecentClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions'>('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions' | 'facturation'>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -51,6 +52,16 @@ export default function TenantDashboard() {
     }
   };
 
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Building2 },
+    { id: 'planning', label: 'Planning', icon: Calendar },
+    { id: 'interventions', label: 'Interventions', icon: Wrench },
+    { id: 'services', label: 'Services', icon: Settings },
+    { id: 'facturation', label: 'Facturation', icon: FileText },
+    { id: 'clients', label: 'Clients', icon: Users },
+    { id: 'vehicles', label: 'Véhicules', icon: Car },
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -60,258 +71,188 @@ export default function TenantDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-slate-900 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Building2 className="w-8 h-8 text-orange-500 mr-3" />
-              <div>
-                <h1 className="text-xl font-bold">Apios Garage</h1>
-                <p className="text-xs text-slate-300">{tenant?.name}</p>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      <aside
+        className={`${
+          sidebarOpen ? 'w-64' : 'w-20'
+        } bg-slate-900 text-white transition-all duration-300 flex flex-col shadow-xl`}
+      >
+        <div className="p-6 border-b border-slate-800">
+          <div className="flex items-center justify-between">
+            {sidebarOpen ? (
+              <div className="flex items-center space-x-3">
+                <div className="bg-orange-500 p-2 rounded-lg">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div className="overflow-hidden">
+                  <h1 className="text-sm font-bold truncate">Apios Garage</h1>
+                  <p className="text-xs text-slate-400 truncate">{tenant?.name}</p>
+                </div>
               </div>
-            </div>
-
-            <div className="hidden md:flex items-center space-x-4">
-              <button
-                onClick={() => setCurrentPage('dashboard')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  currentPage === 'dashboard'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setCurrentPage('planning')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  currentPage === 'planning'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                Planning
-              </button>
-              <button
-                onClick={() => setCurrentPage('interventions')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  currentPage === 'interventions'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                Interventions
-              </button>
-              <button
-                onClick={() => setCurrentPage('services')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  currentPage === 'services'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                Services
-              </button>
-              <button
-                onClick={() => setCurrentPage('clients')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  currentPage === 'clients'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                Clients
-              </button>
-              <button
-                onClick={() => setCurrentPage('vehicles')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  currentPage === 'vehicles'
-                    ? 'bg-orange-500 text-white'
-                    : 'text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                Véhicules
-              </button>
-              <span className="text-sm text-slate-300">{profile?.full_name}</span>
-              <button
-                onClick={() => signOut()}
-                className="flex items-center space-x-2 px-4 py-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Déconnexion</span>
-              </button>
-            </div>
-
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            ) : (
+              <div className="bg-orange-500 p-2 rounded-lg mx-auto">
+                <Building2 className="w-6 h-6" />
+              </div>
+            )}
           </div>
+        </div>
 
-          {mobileMenuOpen && (
-            <div className="md:hidden py-4 space-y-2">
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
+            return (
               <button
-                onClick={() => {
-                  setCurrentPage('dashboard');
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 rounded-lg ${
-                  currentPage === 'dashboard' ? 'bg-orange-500' : 'hover:bg-slate-800'
+                key={item.id}
+                onClick={() => setCurrentPage(item.id as any)}
+                className={`w-full flex items-center ${
+                  sidebarOpen ? 'px-4' : 'px-0 justify-center'
+                } py-3 rounded-lg transition-all ${
+                  isActive
+                    ? 'bg-orange-500 text-white shadow-lg'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
+                title={!sidebarOpen ? item.label : undefined}
               >
-                Dashboard
+                <Icon className={`w-5 h-5 ${sidebarOpen ? 'mr-3' : ''}`} />
+                {sidebarOpen && <span className="text-sm font-medium">{item.label}</span>}
               </button>
-              <button
-                onClick={() => {
-                  setCurrentPage('planning');
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 rounded-lg ${
-                  currentPage === 'planning' ? 'bg-orange-500' : 'hover:bg-slate-800'
-                }`}
-              >
-                Planning
-              </button>
-              <button
-                onClick={() => {
-                  setCurrentPage('interventions');
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 rounded-lg ${
-                  currentPage === 'interventions' ? 'bg-orange-500' : 'hover:bg-slate-800'
-                }`}
-              >
-                Interventions
-              </button>
-              <button
-                onClick={() => {
-                  setCurrentPage('services');
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 rounded-lg ${
-                  currentPage === 'services' ? 'bg-orange-500' : 'hover:bg-slate-800'
-                }`}
-              >
-                Services
-              </button>
-              <button
-                onClick={() => {
-                  setCurrentPage('clients');
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 rounded-lg ${
-                  currentPage === 'clients' ? 'bg-orange-500' : 'hover:bg-slate-800'
-                }`}
-              >
-                Clients
-              </button>
-              <button
-                onClick={() => {
-                  setCurrentPage('vehicles');
-                  setMobileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 rounded-lg ${
-                  currentPage === 'vehicles' ? 'bg-orange-500' : 'hover:bg-slate-800'
-                }`}
-              >
-                Véhicules
-              </button>
-              <button
-                onClick={() => signOut()}
-                className="w-full text-left px-4 py-2 rounded-lg hover:bg-slate-800"
-              >
-                Déconnexion
-              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-3 border-t border-slate-800 space-y-2">
+          {sidebarOpen && (
+            <div className="px-4 py-2 mb-2">
+              <p className="text-xs text-slate-400 mb-1">Connecté en tant que</p>
+              <p className="text-sm font-medium text-white truncate">{profile?.full_name}</p>
+              <p className="text-xs text-slate-400 truncate">{profile?.role}</p>
             </div>
           )}
+
+          <button
+            onClick={() => signOut()}
+            className={`w-full flex items-center ${
+              sidebarOpen ? 'px-4' : 'px-0 justify-center'
+            } py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-all`}
+            title={!sidebarOpen ? 'Déconnexion' : undefined}
+          >
+            <LogOut className={`w-5 h-5 ${sidebarOpen ? 'mr-3' : ''}`} />
+            {sidebarOpen && <span className="text-sm font-medium">Déconnexion</span>}
+          </button>
+
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className={`w-full flex items-center ${
+              sidebarOpen ? 'px-4' : 'px-0 justify-center'
+            } py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-300 transition-all`}
+            title={sidebarOpen ? 'Réduire' : 'Agrandir'}
+          >
+            <Menu className={`w-5 h-5 ${sidebarOpen ? 'mr-3' : ''}`} />
+            {sidebarOpen && <span className="text-sm font-medium">Réduire</span>}
+          </button>
         </div>
-      </nav>
+      </aside>
 
-      {currentPage === 'interventions' ? (
-        <InterventionsPage />
-      ) : currentPage === 'services' ? (
-        <ServicesPage />
-      ) : currentPage === 'dashboard' ? (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-900">
-              Bienvenue, {profile?.full_name}
-            </h2>
-            <p className="text-slate-600">Voici un aperçu de votre garage</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600">Total Clients</p>
-                  <p className="text-3xl font-bold text-slate-900">{clients.length}</p>
-                </div>
-                <Users className="w-12 h-12 text-orange-500" />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600">Total Véhicules</p>
-                  <p className="text-3xl font-bold text-slate-900">{vehicles.length}</p>
-                </div>
-                <Car className="w-12 h-12 text-orange-500" />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-600">Interventions</p>
-                  <p className="text-3xl font-bold text-slate-900">0</p>
-                </div>
-                <Building2 className="w-12 h-12 text-orange-500" />
-              </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white border-b border-slate-200 px-6 py-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">
+                {menuItems.find(item => item.id === currentPage)?.label || 'Dashboard'}
+              </h2>
+              <p className="text-sm text-slate-600 mt-1">
+                {currentPage === 'dashboard' && `Bienvenue, ${profile?.full_name}`}
+                {currentPage === 'planning' && 'Gérez vos rendez-vous'}
+                {currentPage === 'interventions' && 'Suivez vos interventions'}
+                {currentPage === 'services' && 'Gérez vos services'}
+                {currentPage === 'clients' && 'Gérez vos clients'}
+                {currentPage === 'vehicles' && 'Gérez vos véhicules'}
+              </p>
             </div>
           </div>
+        </header>
 
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-slate-200">
-              <h3 className="text-lg font-bold text-slate-900">Clients récents</h3>
-            </div>
-            <div className="p-6">
-              {recentClients.length === 0 ? (
-                <p className="text-slate-500 text-center py-8">
-                  Aucun client enregistré pour le moment
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {recentClients.map((client) => (
-                    <div
-                      key={client.id}
-                      className="flex items-center justify-between p-4 bg-slate-50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium text-slate-900">{client.name}</p>
-                        <p className="text-sm text-slate-600">{client.email || client.phone || 'Pas de contact'}</p>
-                      </div>
-                      <span className="text-xs text-slate-500">
-                        {new Date(client.created_at).toLocaleDateString('fr-FR')}
-                      </span>
+        <main className="flex-1 overflow-y-auto bg-slate-50">
+          {currentPage === 'interventions' ? (
+            <InterventionsPage />
+          ) : currentPage === 'services' ? (
+            <ServicesPage />
+          ) : currentPage === 'facturation' ? (
+            <FacturationPage />
+          ) : currentPage === 'dashboard' ? (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-600">Total Clients</p>
+                      <p className="text-3xl font-bold text-slate-900">{clients.length}</p>
                     </div>
-                  ))}
+                    <Users className="w-12 h-12 text-orange-500" />
+                  </div>
                 </div>
-              )}
+
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-600">Total Véhicules</p>
+                      <p className="text-3xl font-bold text-slate-900">{vehicles.length}</p>
+                    </div>
+                    <Car className="w-12 h-12 text-orange-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-600">Interventions</p>
+                      <p className="text-3xl font-bold text-slate-900">0</p>
+                    </div>
+                    <Building2 className="w-12 h-12 text-orange-500" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow">
+                <div className="p-6 border-b border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-900">Clients récents</h3>
+                </div>
+                <div className="p-6">
+                  {recentClients.length === 0 ? (
+                    <p className="text-slate-500 text-center py-8">
+                      Aucun client enregistré pour le moment
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      {recentClients.map((client) => (
+                        <div
+                          key={client.id}
+                          className="flex items-center justify-between p-4 bg-slate-50 rounded-lg"
+                        >
+                          <div>
+                            <p className="font-medium text-slate-900">{client.name}</p>
+                            <p className="text-sm text-slate-600">{client.email || client.phone || 'Pas de contact'}</p>
+                          </div>
+                          <span className="text-xs text-slate-500">
+                            {new Date(client.created_at).toLocaleDateString('fr-FR')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
+          ) : currentPage === 'planning' ? (
+            <PlanningPage />
+          ) : currentPage === 'clients' ? (
+            <ClientsPage onBack={() => setCurrentPage('dashboard')} />
+          ) : (
+            <VehiclesPage />
+          )}
         </main>
-      ) : currentPage === 'planning' ? (
-        <PlanningPage />
-      ) : currentPage === 'clients' ? (
-        <ClientsPage onBack={() => setCurrentPage('dashboard')} />
-      ) : (
-        <VehiclesPage />
-      )}
+      </div>
     </div>
   );
 }
