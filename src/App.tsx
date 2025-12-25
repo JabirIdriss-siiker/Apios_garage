@@ -5,6 +5,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import TenantDashboard from './pages/TenantDashboard';
 import Login from './pages/Login';
 import PublicBookingPage from './pages/PublicBookingPage';
+import OnboardingWizard from './pages/OnboardingWizard';
 
 function AppContent() {
   const { profile, loading } = useAuth();
@@ -43,7 +44,7 @@ function AppContent() {
 
 function App() {
   return (
-     <AuthProvider>
+    <AuthProvider>
       <AppContent />
     </AuthProvider>
   );

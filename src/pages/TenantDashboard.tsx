@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Users, LogOut, Menu, X, Car, Calendar, Wrench, Settings, FileText } from 'lucide-react';
+import { Building2, Users, LogOut, Menu, X, Car, Calendar, Wrench, Settings, FileText, User } from 'lucide-react';
 import ClientsPage from './ClientsPage';
 import VehiclesPage from './VehiclesPage';
 import PlanningPage from './PlanningPage';
 import ServicesPage from './ServicesPage';
 import InterventionsPage from './InterventionsPage';
 import FacturationPage from './FacturationPage';
+import ProfileSettings from './ProfileSettings';
 import type { Database } from '../lib/database.types';
 
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -21,7 +22,7 @@ export default function TenantDashboard() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [recentClients, setRecentClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions' | 'facturation'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions' | 'facturation' | 'profile'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function TenantDashboard() {
     { id: 'facturation', label: 'Facturation', icon: FileText },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'vehicles', label: 'Véhicules', icon: Car },
+    { id: 'profile', label: 'Mon Profil', icon: User },
   ];
 
   if (loading) {
@@ -73,9 +75,8 @@ export default function TenantDashboard() {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       <aside
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-20'
-        } bg-slate-900 text-white transition-all duration-300 flex flex-col shadow-xl`}
+        className={`${sidebarOpen ? 'w-64' : 'w-20'
+          } bg-slate-900 text-white transition-all duration-300 flex flex-col shadow-xl`}
       >
         <div className="p-6 border-b border-slate-800">
           <div className="flex items-center justify-between">
@@ -105,13 +106,11 @@ export default function TenantDashboard() {
               <button
                 key={item.id}
                 onClick={() => setCurrentPage(item.id as any)}
-                className={`w-full flex items-center ${
-                  sidebarOpen ? 'px-4' : 'px-0 justify-center'
-                } py-3 rounded-lg transition-all ${
-                  isActive
+                className={`w-full flex items-center ${sidebarOpen ? 'px-4' : 'px-0 justify-center'
+                  } py-3 rounded-lg transition-all ${isActive
                     ? 'bg-orange-500 text-white shadow-lg'
                     : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
+                  }`}
                 title={!sidebarOpen ? item.label : undefined}
               >
                 <Icon className={`w-5 h-5 ${sidebarOpen ? 'mr-3' : ''}`} />
@@ -132,9 +131,8 @@ export default function TenantDashboard() {
 
           <button
             onClick={() => signOut()}
-            className={`w-full flex items-center ${
-              sidebarOpen ? 'px-4' : 'px-0 justify-center'
-            } py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-all`}
+            className={`w-full flex items-center ${sidebarOpen ? 'px-4' : 'px-0 justify-center'
+              } py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-all`}
             title={!sidebarOpen ? 'Déconnexion' : undefined}
           >
             <LogOut className={`w-5 h-5 ${sidebarOpen ? 'mr-3' : ''}`} />
@@ -143,9 +141,8 @@ export default function TenantDashboard() {
 
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className={`w-full flex items-center ${
-              sidebarOpen ? 'px-4' : 'px-0 justify-center'
-            } py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-300 transition-all`}
+            className={`w-full flex items-center ${sidebarOpen ? 'px-4' : 'px-0 justify-center'
+              } py-3 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-300 transition-all`}
             title={sidebarOpen ? 'Réduire' : 'Agrandir'}
           >
             <Menu className={`w-5 h-5 ${sidebarOpen ? 'mr-3' : ''}`} />
@@ -168,6 +165,8 @@ export default function TenantDashboard() {
                 {currentPage === 'services' && 'Gérez vos services'}
                 {currentPage === 'clients' && 'Gérez vos clients'}
                 {currentPage === 'vehicles' && 'Gérez vos véhicules'}
+                {currentPage === 'facturation' && 'Gérez vos factures et devis'}
+                {currentPage === 'profile' && 'Gérez votre profil'}
               </p>
             </div>
           </div>
@@ -248,6 +247,8 @@ export default function TenantDashboard() {
             <PlanningPage />
           ) : currentPage === 'clients' ? (
             <ClientsPage onBack={() => setCurrentPage('dashboard')} />
+          ) : currentPage === 'profile' ? (
+            <ProfileSettings />
           ) : (
             <VehiclesPage />
           )}

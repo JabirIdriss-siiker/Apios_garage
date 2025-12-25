@@ -1,0 +1,562 @@
+# Analyse Complète - Apios Garage SaaS
+
+## 📋 Vue d'Ensemble
+
+Apios Garage est une solution SaaS multi-tenant pour la gestion de garages automobiles. Cette analyse compare l'implémentation actuelle avec les fonctionnalités prévues dans [features.md](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/planning/features.md).
+
+---
+
+## 🗄️ Schéma de Base de Données Actuel
+
+### Diagramme Entité-Relation
+
+```mermaid
+erDiagram
+    tenants ||--o{ profiles : "employs"
+    tenants ||--o{ clients : "manages"
+    tenants ||--o{ vehicles : "tracks"
+    tenants ||--o{ interventions : "performs"
+    tenants ||--o{ appointments : "schedules"
+    tenants ||--o{ services : "offers"
+    tenants ||--o{ invoices : "bills"
+    tenants ||--o{ tenant_subscriptions : "subscribes"
+    
+    subscription_plans ||--o{ tenant_subscriptions : "provides"
+    
+    clients ||--o{ vehicles : "owns"
+    clients ||--o{ invoices : "receives"
+    
+    vehicles ||--o{ interventions : "serviced_in"
+    vehicles ||--o{ appointments : "scheduled_for"
+    vehicles ||--o{ repair_history : "has_history"
+    
+    interventions ||--o{ intervention_parts : "uses"
+    interventions ||--o{ intervention_photos : "documents"
+    interventions ||--o| invoices : "billed_as"
+    
+    profiles ||--o{ interventions : "assigned_to"
+    profiles ||--o{ appointments : "assigned_to"
+    
+    invoices ||--o{ invoice_items : "contains"
+```
+
+### Tables Principales
+
+#### 🏢 Multi-Tenancy Core
+
+**`tenants`** - Garages inscrits sur la plateforme
+- `id` (uuid, PK)
+- `name` (text) - Nom du garage
+- `slug` (text, unique) - Pour URLs publiques (ex: `garage-paris.apios.com`)
+- `email`, `phone`, `address` - Coordonnées
+- `subscription_status` (text) - active, suspended, cancelled
+- `suspended_at`, `suspension_reason` - Gestion des suspensions
+- `created_at`, `updated_at`
+
+**`profiles`** - Utilisateurs étendus (auth.users)
+- `id` (uuid, PK, FK → auth.users)
+- `tenant_id` (uuid, FK → tenants) - NULL pour SUPERADMIN
+- `role` (text) - SUPERADMIN, TENANT_ADMIN, RECEPTION, MECHANIC, ACCOUNTANT
+- `full_name` (text)
+- `phone` (text)
+- `created_at`, `updated_at`
+
+**`subscription_plans`** - Plans d'abonnement
+- `id` (uuid, PK)
+- `name` (text) - Basic, Pro, Business
+- `price_monthly` (numeric)
+- `max_users`, `max_vehicles`, `max_storage_gb` (integer)
+- `features` (jsonb) - Fonctionnalités additionnelles
+- `is_active` (boolean)
+
+**`tenant_subscriptions`** - Abonnements des garages
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `plan_id` (uuid, FK → subscription_plans)
+- `status` (text) - active, suspended, cancelled
+- `started_at`, `expires_at` (timestamptz)
+
+---
+
+#### 👥 Gestion Clients & Véhicules
+
+**`clients`** - Clients des garages
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `name` (text)
+- `phone`, `email`, `address` (text)
+- `created_at`, `updated_at`
+
+**`vehicles`** - Parc automobile
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `client_id` (uuid, FK → clients)
+- `license_plate` (text) - Immatriculation
+- `make`, `model` (text) - Marque, modèle
+- `year`, `mileage` (integer)
+- `vin` (text) - Numéro de série
+- `color`, `fuel_type` (text)
+- `notes` (text)
+- `created_at`, `updated_at`
+
+---
+
+#### 🔧 Gestion Interventions
+
+**`interventions`** - Réparations et entretiens
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `client_id` (uuid, FK → clients)
+- `vehicle_id` (uuid, FK → vehicles)
+- `mechanic_id` (uuid, FK → profiles, nullable)
+- `description` (text)
+- `status` (text) - pending, in_progress, completed
+- `estimated_cost`, `actual_cost` (numeric)
+- `notes` (text)
+- `started_at`, `completed_at` (timestamptz)
+- `created_at`, `updated_at`
+
+**`intervention_parts`** - Pièces utilisées
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `intervention_id` (uuid, FK → interventions)
+- `name` (text)
+- `quantity`, `unit_price`, `total_price` (numeric)
+- `created_at`
+
+**`intervention_photos`** - Documentation visuelle
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `intervention_id` (uuid, FK → interventions)
+- `photo_url` (text)
+- `description` (text)
+- `created_at`
+
+**`repair_history`** - Historique des réparations
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `vehicle_id` (uuid, FK → vehicles)
+- `client_id` (uuid, FK → clients)
+- `description` (text)
+- `mileage_at_repair` (integer)
+- `cost` (numeric)
+- `performed_by` (uuid, FK → profiles)
+- `repair_date` (date)
+- `notes` (text)
+
+---
+
+#### 📅 Planning & Rendez-vous
+
+**`services`** - Catalogue de services
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `name`, `description` (text)
+- `estimated_duration_minutes` (integer)
+- `price` (numeric)
+- `category` (text) - entretien, réparation, diagnostic
+- `is_active` (boolean)
+- `created_at`, `updated_at`
+
+**`appointments`** - Rendez-vous atelier
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `client_id` (uuid, FK → clients, nullable)
+- `vehicle_id` (uuid, FK → vehicles, nullable)
+- `mechanic_id` (uuid, FK → profiles, nullable)
+- `service_id` (uuid, FK → services, nullable)
+- `appointment_date` (date)
+- `start_time`, `end_time` (time)
+- `status` (text) - scheduled, confirmed, completed, cancelled
+- `notes` (text)
+- `customer_name`, `customer_phone`, `customer_email` (text) - Pour réservations publiques
+- `vehicle_plate`, `vehicle_make`, `vehicle_model` (text) - Pour réservations publiques
+- `created_at`, `updated_at`
+
+---
+
+#### 💰 Facturation
+
+**`invoices`** - Factures et devis
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `intervention_id` (uuid, FK → interventions, nullable)
+- `client_id` (uuid, FK → clients, nullable)
+- `invoice_number`, `quote_number` (text, unique par tenant)
+- `type` (text) - invoice, quote
+- `status` (text) - draft, sent, paid, overdue
+- `description`, `notes` (text)
+- `subtotal_ex_tax`, `tax_rate`, `tax_amount`, `total_inc_tax` (numeric)
+- `currency` (text, default: EUR)
+- `issued_date`, `due_date`, `paid_date` (date)
+- `created_at`, `updated_at`
+
+**`invoice_items`** - Lignes de facturation
+- `id` (uuid, PK)
+- `invoice_id` (uuid, FK → invoices)
+- `description` (text)
+- `quantity`, `unit_price`, `subtotal` (numeric)
+- `created_at`
+
+---
+
+## 📊 Comparaison Fonctionnalités Prévues vs Implémentées
+
+### ✅ Fonctionnalités Implémentées (MVP)
+
+| Module | Statut | Tables DB | Pages UI |
+|--------|--------|-----------|----------|
+| **Authentification & Rôles** | ✅ Complet | `profiles` | [Login.tsx](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/src/pages/Login.tsx) |
+| **Gestion Clients** | ✅ Complet | `clients` | [ClientsPage.tsx](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/src/pages/ClientsPage.tsx) |
+| **Gestion Véhicules** | ✅ Complet | `vehicles` | [VehiclesPage.tsx](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/src/pages/VehiclesPage.tsx) |
+| **Gestion Interventions** | ✅ Complet | `interventions`, `intervention_parts`, `intervention_photos` | [InterventionsPage.tsx](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/src/pages/InterventionsPage.tsx) |
+| **Planning & RDV** | ✅ Complet | `appointments`, `services` | [PlanningPage.tsx](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/src/pages/PlanningPage.tsx), [PublicBookingPage.tsx](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/src/pages/PublicBookingPage.tsx) |
+| **Facturation** | ✅ Complet | `invoices`, `invoice_items` | [FacturationPage.tsx](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/src/pages/FacturationPage.tsx) |
+| **SuperAdmin** | ✅ Complet | `tenants`, `subscription_plans` | [SuperAdminDashboard.tsx](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/src/pages/SuperAdminDashboard.tsx) |
+| **Abonnements** | ✅ Complet | `subscription_plans`, `tenant_subscriptions` | Intégré dans SuperAdmin |
+
+### ⚠️ Fonctionnalités Partiellement Implémentées
+
+| Fonctionnalité | Ce qui manque | Impact |
+|----------------|---------------|--------|
+| **Gestion Stock** | Tables `parts`, `stock_movements` absentes | ❌ Pas de suivi d'inventaire automatique |
+| **Onboarding Wizard** | Interface dédiée pour configuration initiale | ⚠️ Expérience utilisateur limitée |
+| **Paramètres Profil** | Page de gestion du compte utilisateur | ⚠️ Pas de modification de mot de passe/avatar |
+| **Récupération MDP** | Flow de réinitialisation par email | ⚠️ Sécurité limitée |
+
+### ❌ Fonctionnalités Non Implémentées (Futures)
+
+- 🛍️ Marketplace & Catalogue Partagé
+- 🎨 White Label (domaines personnalisés, branding)
+- 💳 Paiement en Ligne (Stripe)
+- 📱 Communication Client (SMS/Email, portail client)
+- 🛡️ Audit Logs, Export RGPD
+- 📡 API Publique, Webhooks
+
+---
+
+## 🚨 Problèmes Identifiés & Recommandations
+
+### 1. ❌ **Duplication de Données : `repair_history` vs `interventions`**
+
+**Problème :**
+- La table `repair_history` fait doublon avec `interventions`
+- Les deux stockent les mêmes informations (réparations, coût, mécanicien, date)
+- Risque d'incohérence des données
+
+**Recommandation :**
+> [!CAUTION]
+> **Supprimer la table `repair_history`** et utiliser uniquement `interventions` pour l'historique.
+> 
+> Les interventions avec `status = 'completed'` constituent l'historique naturel.
+
+---
+
+### 2. ⚠️ **Gestion Stock Manquante**
+
+**Problème :**
+- La table `intervention_parts` stocke les pièces utilisées, mais il n'y a pas de catalogue de pièces ni de gestion de stock
+- Impossible de suivre l'inventaire ou de déclencher des alertes de stock bas
+
+**Recommandation :**
+> [!IMPORTANT]
+> Ajouter les tables suivantes pour la gestion de stock :
+
+```sql
+-- Catalogue de pièces
+CREATE TABLE parts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  reference text NOT NULL, -- SKU
+  manufacturer text,
+  buy_price numeric NOT NULL DEFAULT 0,
+  sell_price numeric NOT NULL DEFAULT 0,
+  stock_quantity integer NOT NULL DEFAULT 0,
+  min_stock_threshold integer NOT NULL DEFAULT 5,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(tenant_id, reference)
+);
+
+-- Mouvements de stock
+CREATE TABLE stock_movements (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  part_id uuid NOT NULL REFERENCES parts(id) ON DELETE CASCADE,
+  intervention_id uuid REFERENCES interventions(id) ON DELETE SET NULL,
+  movement_type text NOT NULL CHECK (movement_type IN ('in', 'out', 'adjustment')),
+  quantity integer NOT NULL, -- Positif pour IN, négatif pour OUT
+  unit_price numeric,
+  notes text,
+  created_at timestamptz DEFAULT now()
+);
+```
+
+**Modifications à `intervention_parts` :**
+- Ajouter `part_id` (FK → parts, nullable) pour lier au catalogue
+- Garder les champs textuels pour les pièces non cataloguées
+
+---
+
+### 3. ⚠️ **Schéma `clients` Incomplet**
+
+**Problème :**
+- Le schéma actuel ne distingue pas clients particuliers vs professionnels
+- Manque de champs pour SIRET, TVA intracommunautaire (clients B2B)
+
+**Recommandation :**
+> [!IMPORTANT]
+> Enrichir la table `clients` :
+
+```sql
+ALTER TABLE clients
+  ADD COLUMN client_type text DEFAULT 'individual' CHECK (client_type IN ('individual', 'professional')),
+  ADD COLUMN company_name text,
+  ADD COLUMN siret text,
+  ADD COLUMN vat_number text,
+  ADD COLUMN city text,
+  ADD COLUMN zip_code text;
+```
+
+---
+
+### 4. ⚠️ **Relation `appointments` ↔ `interventions` Manquante**
+
+**Problème :**
+- Un rendez-vous confirmé devrait pouvoir être converti en intervention
+- Actuellement, pas de lien direct entre les deux tables
+
+**Recommandation :**
+> [!IMPORTANT]
+> Ajouter une colonne de liaison :
+
+```sql
+ALTER TABLE interventions
+  ADD COLUMN appointment_id uuid REFERENCES appointments(id) ON DELETE SET NULL;
+```
+
+**Workflow :**
+1. Client prend RDV → `appointments` (status: scheduled)
+2. Réception confirme → `appointments` (status: confirmed)
+3. Conversion en intervention → Création de `interventions` avec `appointment_id` renseigné
+
+---
+
+### 5. ⚠️ **Gestion des Devis (Quotes) Incomplète**
+
+**Problème :**
+- La table `invoices` gère à la fois factures et devis (via champ `type`)
+- Mais il n'y a pas de workflow pour convertir un devis accepté en intervention
+
+**Recommandation :**
+> [!NOTE]
+> Ajouter une relation :
+
+```sql
+ALTER TABLE interventions
+  ADD COLUMN quote_id uuid REFERENCES invoices(id) ON DELETE SET NULL;
+```
+
+**Workflow :**
+1. Création devis → `invoices` (type: quote, status: draft)
+2. Envoi au client → `invoices` (status: sent)
+3. Acceptation → `invoices` (status: accepted) + Création `interventions` avec `quote_id`
+4. Fin intervention → Génération `invoices` (type: invoice) liée à l'intervention
+
+---
+
+### 6. ✅ **Sécurité RLS : Bien Implémentée**
+
+**Points Positifs :**
+- ✅ Row Level Security (RLS) activé sur toutes les tables
+- ✅ Isolation stricte par `tenant_id`
+- ✅ Politiques différenciées par rôle (SUPERADMIN, TENANT_ADMIN, RECEPTION, MECHANIC)
+- ✅ Politiques publiques pour la réservation en ligne (`anon` role)
+
+---
+
+### 7. ⚠️ **Indexes Manquants pour Performance**
+
+**Recommandation :**
+> [!TIP]
+> Ajouter des indexes composites pour les requêtes fréquentes :
+
+```sql
+-- Recherche d'interventions par client
+CREATE INDEX idx_interventions_client_id ON interventions(client_id);
+
+-- Recherche d'interventions par statut et tenant
+CREATE INDEX idx_interventions_tenant_status ON interventions(tenant_id, status);
+
+-- Recherche de factures par statut
+CREATE INDEX idx_invoices_tenant_status ON invoices(tenant_id, status);
+
+-- Recherche de véhicules par plaque
+CREATE INDEX idx_vehicles_license_plate_tenant ON vehicles(tenant_id, license_plate);
+```
+
+---
+
+## 📐 Schéma de Base de Données Recommandé (Amélioré)
+
+### Diagramme avec Modifications
+
+```mermaid
+erDiagram
+    tenants ||--o{ profiles : "employs"
+    tenants ||--o{ clients : "manages"
+    tenants ||--o{ vehicles : "tracks"
+    tenants ||--o{ interventions : "performs"
+    tenants ||--o{ appointments : "schedules"
+    tenants ||--o{ services : "offers"
+    tenants ||--o{ invoices : "bills"
+    tenants ||--o{ parts : "stocks"
+    tenants ||--o{ tenant_subscriptions : "subscribes"
+    
+    subscription_plans ||--o{ tenant_subscriptions : "provides"
+    
+    clients ||--o{ vehicles : "owns"
+    clients ||--o{ invoices : "receives"
+    
+    vehicles ||--o{ interventions : "serviced_in"
+    vehicles ||--o{ appointments : "scheduled_for"
+    
+    interventions ||--o{ intervention_parts : "uses"
+    interventions ||--o{ intervention_photos : "documents"
+    interventions ||--o| invoices : "billed_as"
+    interventions }o--|| appointments : "converted_from"
+    interventions }o--|| invoices : "quoted_from"
+    
+    parts ||--o{ stock_movements : "tracked_by"
+    parts ||--o{ intervention_parts : "referenced_in"
+    
+    interventions ||--o{ stock_movements : "consumes"
+    
+    profiles ||--o{ interventions : "assigned_to"
+    profiles ||--o{ appointments : "assigned_to"
+    
+    invoices ||--o{ invoice_items : "contains"
+```
+
+### Nouvelles Tables
+
+#### 📦 **`parts`** - Catalogue de pièces
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `name` (text)
+- `reference` (text, SKU)
+- `manufacturer` (text)
+- `buy_price`, `sell_price` (numeric)
+- `stock_quantity` (integer)
+- `min_stock_threshold` (integer)
+- `created_at`, `updated_at`
+- **UNIQUE** (tenant_id, reference)
+
+#### 📊 **`stock_movements`** - Mouvements de stock
+- `id` (uuid, PK)
+- `tenant_id` (uuid, FK → tenants)
+- `part_id` (uuid, FK → parts)
+- `intervention_id` (uuid, FK → interventions, nullable)
+- `movement_type` (text) - in, out, adjustment
+- `quantity` (integer) - Positif/négatif
+- `unit_price` (numeric)
+- `notes` (text)
+- `created_at`
+
+### Modifications de Tables Existantes
+
+#### 🔧 **`interventions`** - Ajouts
+```sql
+ALTER TABLE interventions
+  ADD COLUMN appointment_id uuid REFERENCES appointments(id) ON DELETE SET NULL,
+  ADD COLUMN quote_id uuid REFERENCES invoices(id) ON DELETE SET NULL;
+```
+
+#### 👥 **`clients`** - Enrichissement
+```sql
+ALTER TABLE clients
+  ADD COLUMN client_type text DEFAULT 'individual' CHECK (client_type IN ('individual', 'professional')),
+  ADD COLUMN company_name text,
+  ADD COLUMN siret text,
+  ADD COLUMN vat_number text,
+  ADD COLUMN city text,
+  ADD COLUMN zip_code text;
+```
+
+#### 🔩 **`intervention_parts`** - Liaison catalogue
+```sql
+ALTER TABLE intervention_parts
+  ADD COLUMN part_id uuid REFERENCES parts(id) ON DELETE SET NULL;
+```
+
+### Tables à Supprimer
+
+#### ❌ **`repair_history`** - Redondante
+> Utiliser `interventions` avec `status = 'completed'` pour l'historique.
+
+---
+
+## 🎯 Plan d'Action Recommandé
+
+### Phase 1 : Corrections Critiques (1-2 jours)
+1. ✅ Enrichir `clients` (client_type, company_name, siret, vat_number, city, zip_code)
+2. ✅ Ajouter `appointment_id` et `quote_id` à `interventions`
+3. ✅ Créer migration pour supprimer `repair_history` (après migration des données si nécessaire)
+4. ✅ Ajouter indexes de performance
+
+### Phase 2 : Gestion Stock (3-5 jours)
+1. ✅ Créer tables `parts` et `stock_movements`
+2. ✅ Ajouter `part_id` à `intervention_parts`
+3. ✅ Implémenter logique de décrémentation automatique du stock
+4. ✅ Créer alertes de stock bas
+5. ✅ Développer interface UI pour gestion du catalogue
+
+### Phase 3 : Fonctionnalités Manquantes MVP (5-7 jours)
+1. ✅ Onboarding Wizard (Tenant Admin uniquement)
+2. ✅ Paramètres Profil (modification mot de passe, avatar)
+3. ✅ Récupération de mot de passe (email reset flow)
+4. ✅ Import CSV (clients, pièces)
+
+### Phase 4 : Fonctionnalités Avancées (Futures)
+- 🛍️ Marketplace inter-garages
+- 🎨 White Label (domaines personnalisés)
+- 💳 Paiement en ligne (Stripe)
+- 📱 Portail client
+- 🛡️ Audit logs, RGPD
+- 📡 API publique
+
+---
+
+## 📝 Résumé Exécutif
+
+### Points Forts ✅
+- Architecture multi-tenant solide avec isolation stricte
+- Sécurité RLS bien implémentée
+- Modules principaux (Clients, Véhicules, Interventions, Planning, Facturation) fonctionnels
+- Interface SuperAdmin complète
+
+### Points d'Amélioration ⚠️
+- **Gestion de stock absente** → Critique pour un garage
+- **Duplication repair_history/interventions** → Nettoyage nécessaire
+- **Schéma clients incomplet** → Manque B2B
+- **Relations manquantes** → appointments ↔ interventions, quotes ↔ interventions
+- **Fonctionnalités UX manquantes** → Onboarding, paramètres profil, récupération MDP
+
+### Recommandation Globale
+> [!IMPORTANT]
+> **Priorité 1 :** Implémenter la gestion de stock (Phase 2) car c'est une fonctionnalité critique pour un garage.
+> 
+> **Priorité 2 :** Corriger les incohérences de schéma (Phase 1) pour éviter la dette technique.
+> 
+> **Priorité 3 :** Compléter les fonctionnalités MVP manquantes (Phase 3) pour améliorer l'expérience utilisateur.
+
+---
+
+## 📎 Fichiers de Référence
+
+- [features.md](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/planning/features.md) - Fonctionnalités prévues
+- [architecture.md](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/planning/architecture.md) - Architecture technique
+- [Schema SQL Principal](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/supabase/migrations/20251126235605_create_apios_garage_schema.sql)
+- [Schema Interventions](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/supabase/migrations/20251127184053_add_interventions_module.sql)
+- [Schema Facturation](file:///c:/Users/dry-_/OneDrive/Bureau/Apios/apios_garage_bolt/supabase/migrations/20251128152426_create_facturation_module.sql)
