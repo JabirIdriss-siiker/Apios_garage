@@ -111,6 +111,9 @@ export default function ClientsPage({ onBack }: ClientsPageProps) {
                     Nom
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
@@ -129,6 +132,17 @@ export default function ClientsPage({ onBack }: ClientsPageProps) {
                   <tr key={client.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4 text-sm font-medium text-slate-900">
                       {client.name}
+                      {client.client_type === 'professional' && client.company_name && (
+                        <div className="text-xs text-slate-500 mt-1">{client.company_name}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${client.client_type === 'professional'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-gray-100 text-gray-800'
+                        }`}>
+                        {client.client_type === 'professional' ? 'Pro' : 'Particulier'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {client.email || '-'}
@@ -178,6 +192,12 @@ function ClientModal({
     email: '',
     phone: '',
     address: '',
+    client_type: 'individual' as 'individual' | 'professional',
+    company_name: '',
+    siret: '',
+    vat_number: '',
+    city: '',
+    zip_code: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -257,6 +277,96 @@ function ClientModal({
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
+              Type de client *
+            </label>
+            <select
+              value={formData.client_type}
+              onChange={(e) => setFormData({ ...formData, client_type: e.target.value as 'individual' | 'professional' })}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="individual">Particulier</option>
+              <option value="professional">Professionnel</option>
+            </select>
+          </div>
+
+          {formData.client_type === 'professional' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Nom de l'entreprise *
+                </label>
+                <input
+                  type="text"
+                  value={formData.company_name}
+                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                  required={formData.client_type === 'professional'}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="SARL Garage Dupont"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    SIRET
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.siret}
+                    onChange={(e) => setFormData({ ...formData, siret: e.target.value })}
+                    maxLength={14}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="12345678901234"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    N° TVA
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.vat_number}
+                    onChange={(e) => setFormData({ ...formData, vat_number: e.target.value })}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="FR12345678901"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Ville
+              </label>
+              <input
+                type="text"
+                value={formData.city}
+                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="Paris"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Code postal
+              </label>
+              <input
+                type="text"
+                value={formData.zip_code}
+                onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
+                maxLength={5}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                placeholder="75001"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
               Adresse
             </label>
             <textarea
@@ -264,7 +374,7 @@ function ClientModal({
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               rows={3}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-              placeholder="123 rue de la République, 75001 Paris"
+              placeholder="123 rue de la République"
             />
           </div>
 

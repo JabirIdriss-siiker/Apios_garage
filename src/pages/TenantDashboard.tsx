@@ -9,6 +9,7 @@ import ServicesPage from './ServicesPage';
 import InterventionsPage from './InterventionsPage';
 import FacturationPage from './FacturationPage';
 import ProfileSettings from './ProfileSettings';
+import OnboardingWizard from './OnboardingWizard';
 import type { Database } from '../lib/database.types';
 
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -24,6 +25,7 @@ export default function TenantDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions' | 'facturation' | 'profile'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -40,7 +42,13 @@ export default function TenantDashboard() {
         supabase.from('vehicles').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false })
       ]);
 
-      if (tenantRes.data) setTenant(tenantRes.data);
+      if (tenantRes.data) {
+        setTenant(tenantRes.data);
+        // Check if onboarding is needed for tenant admin
+        if (profile.role === 'TENANT_ADMIN' && !tenantRes.data.onboarding_completed) {
+          setShowOnboarding(true);
+        }
+      }
       if (clientsRes.data) {
         setClients(clientsRes.data);
         setRecentClients(clientsRes.data.slice(0, 5));
@@ -69,6 +77,46 @@ export default function TenantDashboard() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
+    );
+  }
+
+  // Show onboarding wizard for first-time tenant admin login
+  if (showOnboarding) {
+    return (
+      <OnboardingWizard
+        onComplete={async () => {
+          console.log('Onboarding complete callback triggered');
+          try {
+            // Mark onboarding as completed
+            if (tenant?.id) {
+              console.log('Updating tenant onboarding_completed flag...');
+              const { error } = await supabase
+                .from('tenants')
+                .update({ onboarding_completed: true })
+                .eq('id', tenant.id);
+
+              if (error) {
+                console.error('Error updating onboarding_completed:', error);
+                throw error;
+              }
+              console.log('Onboarding marked as completed successfully');
+            }
+
+            // Hide wizard and reload data
+            console.log('Hiding onboarding wizard...');
+            setShowOnboarding(false);
+
+            // Reload tenant data to get updated onboarding_completed flag
+            console.log('Reloading dashboard data...');
+            await loadData();
+            console.log('Dashboard data reloaded');
+          } catch (error) {
+            console.error('Error in onboarding completion:', error);
+            // Even if there's an error, try to hide the wizard
+            setShowOnboarding(false);
+          }
+        }}
+      />
     );
   }
 

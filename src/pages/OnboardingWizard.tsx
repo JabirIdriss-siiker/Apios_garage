@@ -10,7 +10,11 @@ interface OnboardingStep {
     completed: boolean;
 }
 
-export default function OnboardingWizard() {
+interface OnboardingWizardProps {
+    onComplete?: () => void;
+}
+
+export default function OnboardingWizard({ onComplete }: OnboardingWizardProps = {}) {
     const { profile } = useAuth();
     const [currentStep, setCurrentStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -113,9 +117,30 @@ export default function OnboardingWizard() {
     };
 
     const handleFinishOnboarding = async () => {
-        // Tax rate is stored at invoice level, not tenant level
-        // Just mark onboarding as complete
-        setCurrentStep(4);
+        if (!profile?.tenant_id) return;
+
+        setLoading(true);
+        setError('');
+
+        try {
+            // Save tax configuration
+            const { error: updateError } = await supabase
+                .from('tenants')
+                .update({
+                    default_tax_rate: parseFloat(defaultTaxRate),
+                })
+                .eq('id', profile.tenant_id);
+
+            if (updateError) throw updateError;
+
+            // Move to success screen (step 4)
+            // The success screen will have a button that calls onComplete
+            setCurrentStep(4);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const toggleWorkingDay = (day: string) => {
@@ -146,7 +171,16 @@ export default function OnboardingWizard() {
                         Votre garage est maintenant configuré. Vous pouvez commencer à utiliser Apios Garage.
                     </p>
                     <button
-                        onClick={() => window.location.reload()}
+                        onClick={() => {
+                            console.log('Finish button clicked, onComplete:', onComplete);
+                            if (onComplete) {
+                                console.log('Calling onComplete callback...');
+                                onComplete();
+                            } else {
+                                console.log('No onComplete callback, reloading page...');
+                                window.location.reload();
+                            }
+                        }}
                         className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         Accéder au Dashboard
