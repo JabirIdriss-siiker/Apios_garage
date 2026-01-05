@@ -26,6 +26,7 @@ dist-ssr
 e2e/
 test-results/
 playwright-report/
+.test-results.json
 
 # Tests unitaires
 src/**/__tests__/
@@ -38,3 +39,6 @@ src/test/
 # Configuration de tests
 vitest.config.ts
 playwright.config.ts
+
+# GitHub workflows (CI/CD)
+.github/
