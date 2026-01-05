@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, Plus, X, Car, History } from 'lucide-react';
+import { Search, Plus, X, Car, History, Edit2, Trash2 } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 
 type Vehicle = Database['public']['Tables']['vehicles']['Row'];
@@ -17,6 +17,7 @@ export default function VehiclesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [deletingVehicle, setDeletingVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     loadData();
@@ -140,7 +141,7 @@ export default function VehiclesPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     VIN
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -163,23 +164,23 @@ export default function VehiclesPage() {
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {vehicle.vin || '-'}
                     </td>
-                    <td className="px-6 py-4 text-sm">
+                    <td className="px-6 py-4 text-sm text-right space-x-2">
                       <button
                         onClick={() => {
                           setSelectedVehicle(vehicle);
                           setShowModal(true);
                         }}
-                        className="text-orange-600 hover:text-orange-800 mr-3"
+                        className="inline-flex items-center px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                        title="Modifier"
                       >
-                        Modifier
+                        <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => {
-                          setSelectedVehicle(vehicle);
-                        }}
-                        className="text-slate-600 hover:text-slate-800"
+                        onClick={() => setDeletingVehicle(vehicle)}
+                        className="inline-flex items-center px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                        title="Supprimer"
                       >
-                        <History className="w-4 h-4 inline" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
@@ -204,6 +205,28 @@ export default function VehiclesPage() {
             setSelectedVehicle(null);
             loadData();
           }}
+        />
+      )}
+
+      {deletingVehicle && (
+        <DeleteConfirmModal
+          vehicleName={`${deletingVehicle.make} ${deletingVehicle.model} (${deletingVehicle.license_plate})`}
+          onConfirm={async () => {
+            try {
+              const { error } = await supabase
+                .from('vehicles')
+                .delete()
+                .eq('id', deletingVehicle.id);
+
+              if (error) throw error;
+              setDeletingVehicle(null);
+              loadData();
+            } catch (error) {
+              alert('Erreur lors de la suppression du véhicule');
+              console.error(error);
+            }
+          }}
+          onCancel={() => setDeletingVehicle(null)}
         />
       )}
     </main>
@@ -462,6 +485,42 @@ function VehicleModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function DeleteConfirmModal({
+  vehicleName,
+  onConfirm,
+  onCancel,
+}: {
+  vehicleName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Confirmer la suppression</h3>
+        <p className="text-slate-600 mb-6">
+          Êtes-vous sûr de vouloir supprimer le véhicule <strong>{vehicleName}</strong> ?
+          Cette action est irréversible.
+        </p>
+        <div className="flex space-x-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Supprimer
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import type { Database } from '../lib/database.types';
 
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -16,27 +16,36 @@ export default function ClientsPage({ onBack }: ClientsPageProps) {
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'individual' | 'professional'>('all');
   const [showModal, setShowModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
 
   useEffect(() => {
     loadClients();
   }, [profile?.tenant_id]);
 
   useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredClients(clients);
-    } else {
+    let filtered = clients;
+
+    // Apply type filter
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(client => client.client_type === typeFilter);
+    }
+
+    // Apply search filter
+    if (searchTerm.trim() !== '') {
       const term = searchTerm.toLowerCase();
-      setFilteredClients(
-        clients.filter(
-          (client) =>
-            client.name.toLowerCase().includes(term) ||
-            client.email?.toLowerCase().includes(term) ||
-            client.phone?.toLowerCase().includes(term)
-        )
+      filtered = filtered.filter(
+        (client) =>
+          client.name.toLowerCase().includes(term) ||
+          client.email?.toLowerCase().includes(term) ||
+          client.phone?.toLowerCase().includes(term)
       );
     }
-  }, [searchTerm, clients]);
+
+    setFilteredClients(filtered);
+  }, [searchTerm, typeFilter, clients]);
 
   const loadClients = async () => {
     if (!profile?.tenant_id) return;
@@ -82,15 +91,26 @@ export default function ClientsPage({ onBack }: ClientsPageProps) {
             </button>
           </div>
 
-          <div className="mt-4 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Rechercher par nom, email ou téléphone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
+          <div className="mt-4 flex gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Rechercher par nom, email ou téléphone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              />
+            </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as 'all' | 'individual' | 'professional')}
+              className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value="all">Tous les types</option>
+              <option value="individual">Particuliers</option>
+              <option value="professional">Professionnels</option>
+            </select>
           </div>
         </div>
 
@@ -125,6 +145,9 @@ export default function ClientsPage({ onBack }: ClientsPageProps) {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Date d'ajout
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -138,8 +161,8 @@ export default function ClientsPage({ onBack }: ClientsPageProps) {
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${client.client_type === 'professional'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-gray-100 text-gray-800'
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-800'
                         }`}>
                         {client.client_type === 'professional' ? 'Pro' : 'Particulier'}
                       </span>
@@ -155,6 +178,22 @@ export default function ClientsPage({ onBack }: ClientsPageProps) {
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {new Date(client.created_at).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right space-x-2">
+                      <button
+                        onClick={() => setEditingClient(client)}
+                        className="inline-flex items-center px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                        title="Modifier"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingClient(client)}
+                        className="inline-flex items-center px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -174,30 +213,67 @@ export default function ClientsPage({ onBack }: ClientsPageProps) {
           }}
         />
       )}
+
+      {editingClient && (
+        <ClientModal
+          tenantId={profile?.tenant_id!}
+          client={editingClient}
+          onClose={() => setEditingClient(null)}
+          onSuccess={() => {
+            setEditingClient(null);
+            loadClients();
+          }}
+        />
+      )}
+
+      {deletingClient && (
+        <DeleteConfirmModal
+          clientName={deletingClient.name}
+          onConfirm={async () => {
+            try {
+              const { error } = await supabase
+                .from('clients')
+                .delete()
+                .eq('id', deletingClient.id);
+
+              if (error) throw error;
+              setDeletingClient(null);
+              loadClients();
+            } catch (error) {
+              alert('Erreur lors de la suppression du client');
+              console.error(error);
+            }
+          }}
+          onCancel={() => setDeletingClient(null)}
+        />
+      )}
     </main>
   );
 }
 
 function ClientModal({
   tenantId,
+  client,
   onClose,
   onSuccess,
 }: {
   tenantId: string;
+  client?: Client | null;
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const isEditing = !!client;
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    client_type: 'individual' as 'individual' | 'professional',
-    company_name: '',
-    siret: '',
-    vat_number: '',
-    city: '',
-    zip_code: '',
+    name: client?.name || '',
+    email: client?.email || '',
+    phone: client?.phone || '',
+    address: client?.address || '',
+    client_type: (client?.client_type as 'individual' | 'professional') || 'individual',
+    company_name: client?.company_name || '',
+    siret: client?.siret || '',
+    vat_number: client?.vat_number || '',
+    city: client?.city || '',
+    zip_code: client?.zip_code || '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -206,15 +282,24 @@ function ClientModal({
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('clients').insert({
-        tenant_id: tenantId,
-        ...formData,
-      });
+      if (isEditing) {
+        const { error } = await supabase
+          .from('clients')
+          .update(formData)
+          .eq('id', client.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('clients').insert({
+          tenant_id: tenantId,
+          ...formData,
+        });
+
+        if (error) throw error;
+      }
       onSuccess();
     } catch (error) {
-      alert('Erreur lors de la création du client');
+      alert(`Erreur lors de ${isEditing ? 'la modification' : 'la création'} du client`);
       console.error(error);
     } finally {
       setLoading(false);
@@ -225,7 +310,7 @@ function ClientModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-slate-900">Nouveau Client</h3>
+          <h3 className="text-xl font-bold text-slate-900">{isEditing ? 'Modifier le client' : 'Nouveau Client'}</h3>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600"
@@ -391,10 +476,46 @@ function ClientModal({
               disabled={loading}
               className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Création...' : 'Créer'}
+              {loading ? (isEditing ? 'Modification...' : 'Création...') : (isEditing ? 'Enregistrer' : 'Créer')}
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function DeleteConfirmModal({
+  clientName,
+  onConfirm,
+  onCancel,
+}: {
+  clientName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <h3 className="text-xl font-bold text-slate-900 mb-4">Confirmer la suppression</h3>
+        <p className="text-slate-600 mb-6">
+          Êtes-vous sûr de vouloir supprimer le client <strong>{clientName}</strong> ?
+          Cette action est irréversible.
+        </p>
+        <div className="flex space-x-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          >
+            Supprimer
+          </button>
+        </div>
       </div>
     </div>
   );

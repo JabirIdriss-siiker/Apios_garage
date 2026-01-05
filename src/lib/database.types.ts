@@ -87,6 +87,12 @@ export type Database = {
           phone: string | null
           email: string | null
           address: string | null
+          client_type: 'individual' | 'professional'
+          company_name: string | null
+          siret: string | null
+          vat_number: string | null
+          city: string | null
+          zip_code: string | null
           created_at: string
           updated_at: string
         }
@@ -97,6 +103,12 @@ export type Database = {
           phone?: string | null
           email?: string | null
           address?: string | null
+          client_type?: 'individual' | 'professional'
+          company_name?: string | null
+          siret?: string | null
+          vat_number?: string | null
+          city?: string | null
+          zip_code?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -107,6 +119,12 @@ export type Database = {
           phone?: string | null
           email?: string | null
           address?: string | null
+          client_type?: 'individual' | 'professional'
+          company_name?: string | null
+          siret?: string | null
+          vat_number?: string | null
+          city?: string | null
+          zip_code?: string | null
           created_at?: string
           updated_at?: string
         }

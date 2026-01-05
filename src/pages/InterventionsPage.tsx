@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Search, Plus, Wrench, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Search, Plus, Wrench, ChevronLeft, ChevronRight, Eye, Edit2, Trash2 } from 'lucide-react';
 import InterventionModal from '../components/InterventionModal';
 import InterventionDetailsModal from '../components/InterventionDetailsModal';
+import { DeleteConfirmModal } from '../components/InterventionDeleteModal';
 import type { Database } from '../lib/database.types';
 
 type Intervention = Database['public']['Tables']['interventions']['Row'];
@@ -27,6 +28,7 @@ export default function InterventionsPage() {
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
+  const [deletingIntervention, setDeletingIntervention] = useState<Intervention | null>(null);
 
   const canManage = profile?.role === 'TENANT_ADMIN' || profile?.role === 'RECEPTION';
 
@@ -253,7 +255,7 @@ export default function InterventionsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Coût Réel
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
@@ -291,17 +293,38 @@ export default function InterventionsPage() {
                         {intervention.actual_cost.toFixed(2)} €
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex space-x-2">
+                        <div className="flex space-x-2 justify-end">
                           <button
                             onClick={() => {
                               setSelectedIntervention(intervention);
                               setShowDetailsModal(true);
                             }}
-                            className="p-2 text-slate-600 hover:bg-slate-50 rounded transition-colors"
+                            className="inline-flex items-center px-3 py-1 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded transition-colors"
                             title="Voir les détails"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+                          {canManage && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedIntervention(intervention);
+                                  setShowModal(true);
+                                }}
+                                className="inline-flex items-center px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                title="Modifier"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setDeletingIntervention(intervention)}
+                                className="inline-flex items-center px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                                title="Supprimer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -376,6 +399,28 @@ export default function InterventionsPage() {
           onUpdate={() => {
             loadData();
           }}
+        />
+      )}
+
+      {deletingIntervention && (
+        <DeleteConfirmModal
+          interventionDescription={deletingIntervention.description}
+          onConfirm={async () => {
+            try {
+              const { error } = await supabase
+                .from('interventions')
+                .delete()
+                .eq('id', deletingIntervention.id);
+
+              if (error) throw error;
+              setDeletingIntervention(null);
+              loadData();
+            } catch (error) {
+              alert('Erreur lors de la suppression de l\'intervention');
+              console.error(error);
+            }
+          }}
+          onCancel={() => setDeletingIntervention(null)}
         />
       )}
     </main>
