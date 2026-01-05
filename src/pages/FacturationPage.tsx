@@ -145,11 +145,11 @@ export default function FacturationPage() {
           invoices.map(inv =>
             inv.id === invoiceId
               ? {
-                  ...inv,
-                  subtotal_ex_tax: subtotal,
-                  tax_amount: taxAmount,
-                  total_inc_tax: totalIncTax,
-                }
+                ...inv,
+                subtotal_ex_tax: subtotal,
+                tax_amount: taxAmount,
+                total_inc_tax: totalIncTax,
+              }
               : inv
           )
         );
@@ -307,14 +307,14 @@ export default function FacturationPage() {
   }
 
   return (
-    <div className="flex h-full gap-6 p-6">
+    <div className="flex-col md:flex-row h-full gap-6 p-4 md:p-6">
       <div className="flex-1">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex gap-4">
+        <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value as any)}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              className="px-4 py-2 rounded-lg border border-slate-200 text-sm bg-white w-full sm:w-auto"
             >
               <option value="all">Tous les types</option>
               <option value="invoice">Factures</option>
@@ -324,7 +324,7 @@ export default function FacturationPage() {
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="px-4 py-2 rounded-lg border border-slate-200 text-sm bg-white"
+              className="px-4 py-2 rounded-lg border border-slate-200 text-sm bg-white w-full sm:w-auto"
             >
               <option value="all">Tous les statuts</option>
               <option value="draft">Brouillon</option>
@@ -342,7 +342,7 @@ export default function FacturationPage() {
               setInvoiceItems([]);
               setShowModal(true);
             }}
-            className="flex items-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            className="w-full md:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span>Nouvelle facture/devis</span>
@@ -355,22 +355,22 @@ export default function FacturationPage() {
           ) : (
             filteredInvoices.map(invoice => (
               <div key={invoice.id} className="p-4 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3">
-                      <FileText className="w-5 h-5 text-orange-500" />
-                      <div>
-                        <p className="font-medium text-slate-900">
+                      <FileText className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-900 truncate">
                           {invoice.type === 'invoice' ? invoice.invoice_number : invoice.quote_number}
                         </p>
-                        <p className="text-sm text-slate-600">
+                        <p className="text-sm text-slate-600 truncate">
                           {clients.find(c => c.id === invoice.client_id)?.name || 'Client'}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-6">
+                  <div className="flex items-center justify-between md:justify-end space-x-4 md:space-x-6">
                     <div className="text-right">
                       <p className="font-bold text-slate-900">{invoice.total_inc_tax?.toFixed(2)}€</p>
                       <p className="text-xs text-slate-600">{new Date(invoice.issued_date).toLocaleDateString('fr-FR')}</p>
@@ -405,7 +405,7 @@ export default function FacturationPage() {
       </div>
 
       {showModal && (
-        <div className="w-96 bg-white rounded-lg shadow-lg p-6 overflow-y-auto max-h-screen">
+        <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white shadow-xl p-6 overflow-y-auto z-50 transform transition-transform border-l border-slate-200">
           <div className="mb-6">
             <h3 className="text-lg font-bold text-slate-900">
               {selectedInvoice ? 'Détails' : 'Nouvelle facture/devis'}

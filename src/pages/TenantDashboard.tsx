@@ -12,6 +12,8 @@ import UsersManagementPage from './UsersManagementPage';
 import ProfileSettings from './ProfileSettings';
 import OnboardingWizard from './OnboardingWizard';
 import { usePermissions } from '../hooks/usePermissions';
+import AdminOverview from './dashboard/AdminOverview';
+import StaffOverview from './dashboard/StaffOverview';
 import type { Database } from '../lib/database.types';
 
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -39,24 +41,18 @@ export default function TenantDashboard() {
 
     setLoading(true);
     try {
-      const [tenantRes, clientsRes, vehiclesRes] = await Promise.all([
-        supabase.from('tenants').select('*').eq('id', profile.tenant_id).maybeSingle(),
-        supabase.from('clients').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false }),
-        supabase.from('vehicles').select('*').eq('tenant_id', profile.tenant_id).order('created_at', { ascending: false })
-      ]);
+      const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', profile.tenant_id)
+        .maybeSingle();
 
-      if (tenantRes.data) {
-        setTenant(tenantRes.data);
-        // Check if onboarding is needed for tenant admin
-        if (profile.role === 'TENANT_ADMIN' && !tenantRes.data.onboarding_completed) {
+      if (tenantData) {
+        setTenant(tenantData);
+        if (profile.role === 'TENANT_ADMIN' && !tenantData.onboarding_completed) {
           setShowOnboarding(true);
         }
       }
-      if (clientsRes.data) {
-        setClients(clientsRes.data);
-        setRecentClients(clientsRes.data.slice(0, 5));
-      }
-      if (vehiclesRes.data) setVehicles(vehiclesRes.data);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -233,69 +229,11 @@ export default function TenantDashboard() {
           ) : currentPage === 'facturation' ? (
             <FacturationPage />
           ) : currentPage === 'dashboard' ? (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-600">Total Clients</p>
-                      <p className="text-3xl font-bold text-slate-900">{clients.length}</p>
-                    </div>
-                    <Users className="w-12 h-12 text-orange-500" />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-600">Total Véhicules</p>
-                      <p className="text-3xl font-bold text-slate-900">{vehicles.length}</p>
-                    </div>
-                    <Car className="w-12 h-12 text-orange-500" />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-600">Interventions</p>
-                      <p className="text-3xl font-bold text-slate-900">0</p>
-                    </div>
-                    <Building2 className="w-12 h-12 text-orange-500" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow">
-                <div className="p-6 border-b border-slate-200">
-                  <h3 className="text-lg font-bold text-slate-900">Clients récents</h3>
-                </div>
-                <div className="p-6">
-                  {recentClients.length === 0 ? (
-                    <p className="text-slate-500 text-center py-8">
-                      Aucun client enregistré pour le moment
-                    </p>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentClients.map((client) => (
-                        <div
-                          key={client.id}
-                          className="flex items-center justify-between p-4 bg-slate-50 rounded-lg"
-                        >
-                          <div>
-                            <p className="font-medium text-slate-900">{client.name}</p>
-                            <p className="text-sm text-slate-600">{client.email || client.phone || 'Pas de contact'}</p>
-                          </div>
-                          <span className="text-xs text-slate-500">
-                            {new Date(client.created_at).toLocaleDateString('fr-FR')}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            can.manageUsers ? ( // Simplification: TENANT_ADMIN has manageUsers
+              <AdminOverview onNavigate={(page) => setCurrentPage(page as any)} />
+            ) : (
+              <StaffOverview onNavigate={(page) => setCurrentPage(page as any)} />
+            )
           ) : currentPage === 'planning' ? (
             <PlanningPage />
           ) : currentPage === 'clients' ? (
