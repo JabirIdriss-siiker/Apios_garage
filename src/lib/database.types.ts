@@ -504,6 +504,75 @@ export type Database = {
           created_at?: string
         }
       }
+      permissions: {
+        Row: {
+          id: string
+          code: string
+          name: string
+          description: string | null
+          category: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name: string
+          description?: string | null
+          category: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name?: string
+          description?: string | null
+          category?: string
+          created_at?: string
+        }
+      }
+      user_permissions: {
+        Row: {
+          id: string
+          user_id: string
+          permission_code: string
+          granted_by: string | null
+          granted_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          permission_code: string
+          granted_by?: string | null
+          granted_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          permission_code?: string
+          granted_by?: string | null
+          granted_at?: string
+        }
+      }
+      role_permissions: {
+        Row: {
+          id: string
+          role: string
+          permission_code: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          role: string
+          permission_code: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          role?: string
+          permission_code?: string
+          created_at?: string
+        }
+      }
     }
   }
 }

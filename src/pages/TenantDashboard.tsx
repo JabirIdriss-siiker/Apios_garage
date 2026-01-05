@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { Building2, Users, LogOut, Menu, X, Car, Calendar, Wrench, Settings, FileText, User } from 'lucide-react';
+import { Building2, Users, LogOut, Menu, X, Car, Calendar, Wrench, Settings, FileText, User, Shield } from 'lucide-react';
 import ClientsPage from './ClientsPage';
 import VehiclesPage from './VehiclesPage';
 import PlanningPage from './PlanningPage';
 import ServicesPage from './ServicesPage';
 import InterventionsPage from './InterventionsPage';
 import FacturationPage from './FacturationPage';
+import UsersManagementPage from './UsersManagementPage';
 import ProfileSettings from './ProfileSettings';
 import OnboardingWizard from './OnboardingWizard';
+import { usePermissions } from '../hooks/usePermissions';
 import type { Database } from '../lib/database.types';
 
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -18,12 +20,13 @@ type Vehicle = Database['public']['Tables']['vehicles']['Row'];
 
 export default function TenantDashboard() {
   const { signOut, profile } = useAuth();
+  const { can } = usePermissions();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [recentClients, setRecentClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions' | 'facturation' | 'profile'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions' | 'facturation' | 'users' | 'profile'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -69,6 +72,7 @@ export default function TenantDashboard() {
     { id: 'facturation', label: 'Facturation', icon: FileText },
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'vehicles', label: 'Véhicules', icon: Car },
+    ...(can.manageUsers ? [{ id: 'users', label: 'Utilisateurs', icon: Shield }] : []),
     { id: 'profile', label: 'Mon Profil', icon: User },
   ];
 
@@ -214,6 +218,7 @@ export default function TenantDashboard() {
                 {currentPage === 'clients' && 'Gérez vos clients'}
                 {currentPage === 'vehicles' && 'Gérez vos véhicules'}
                 {currentPage === 'facturation' && 'Gérez vos factures et devis'}
+                {currentPage === 'users' && 'Gérez les accès utilisateurs'}
                 {currentPage === 'profile' && 'Gérez votre profil'}
               </p>
             </div>
@@ -297,6 +302,8 @@ export default function TenantDashboard() {
             <ClientsPage onBack={() => setCurrentPage('dashboard')} />
           ) : currentPage === 'profile' ? (
             <ProfileSettings />
+          ) : currentPage === 'users' ? (
+            <UsersManagementPage />
           ) : (
             <VehiclesPage />
           )}
