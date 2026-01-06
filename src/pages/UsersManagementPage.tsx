@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { usePermissions } from '../hooks/usePermissions';
+import { useSubscription } from '../hooks/useSubscription';
 import { useAuth } from '../contexts/AuthContext';
-import { Shield, Search, User as UserIcon, Lock } from 'lucide-react';
+import { Shield, Search, User as UserIcon, Lock, Plus } from 'lucide-react';
 import PermissionsModal from '../components/PermissionsModal';
+import CreateUserModal from '../components/CreateUserModal';
+import LimitGauge from '../components/LimitGauge';
+import UpgradeButton from '../components/UpgradeButton';
 import type { Database } from '../lib/database.types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
@@ -11,12 +15,14 @@ type Profile = Database['public']['Tables']['profiles']['Row'];
 export default function UsersManagementPage() {
     const { can } = usePermissions();
     const { profile: currentUser } = useAuth();
+    const subscription = useSubscription();
 
     const [users, setUsers] = useState<Profile[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
     const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+    const [showCreateUserModal, setShowCreateUserModal] = useState(false);
 
     useEffect(() => {
         loadUsers();
@@ -76,7 +82,31 @@ export default function UsersManagementPage() {
                                 <p className="text-sm text-slate-500">Gérez les rôles et permissions des membres de votre équipe</p>
                             </div>
                         </div>
+
+                        {/* Create User Button or Upgrade Button */}
+                        {subscription.limits.users.isReached ? (
+                            <UpgradeButton message="Limite d'utilisateurs atteinte" variant="secondary" />
+                        ) : (
+                            <button
+                                onClick={() => setShowCreateUserModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                            >
+                                <Plus className="w-5 h-5" />
+                                <span>Nouvel Utilisateur</span>
+                            </button>
+                        )}
                     </div>
+
+                    {/* Subscription Limit Gauge */}
+                    {!subscription.loading && subscription.plan && (
+                        <div className="mt-6 max-w-md">
+                            <LimitGauge
+                                label="Utilisateurs"
+                                used={subscription.limits.users.used}
+                                max={subscription.limits.users.max}
+                            />
+                        </div>
+                    )}
 
                     <div className="mt-6 relative max-w-md">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -170,6 +200,16 @@ export default function UsersManagementPage() {
                     onClose={() => {
                         setShowPermissionsModal(false);
                         setSelectedUser(null);
+                    }}
+                />
+            )}
+
+            {showCreateUserModal && (
+                <CreateUserModal
+                    onClose={() => setShowCreateUserModal(false)}
+                    onSuccess={() => {
+                        loadUsers();
+                        setShowCreateUserModal(false);
                     }}
                 />
             )}

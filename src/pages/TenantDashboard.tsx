@@ -10,6 +10,7 @@ import InterventionsPage from './InterventionsPage';
 import FacturationPage from './FacturationPage';
 import UsersManagementPage from './UsersManagementPage';
 import ProfileSettings from './ProfileSettings';
+import SettingsPage from './SettingsPage';
 import OnboardingWizard from './OnboardingWizard';
 import { usePermissions } from '../hooks/usePermissions';
 import AdminOverview from './dashboard/AdminOverview';
@@ -28,7 +29,7 @@ export default function TenantDashboard() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [recentClients, setRecentClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions' | 'facturation' | 'users' | 'profile'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'clients' | 'vehicles' | 'planning' | 'services' | 'interventions' | 'facturation' | 'users' | 'profile' | 'settings'>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -69,7 +70,7 @@ export default function TenantDashboard() {
     { id: 'clients', label: 'Clients', icon: Users },
     { id: 'vehicles', label: 'Véhicules', icon: Car },
     ...(can.manageUsers ? [{ id: 'users', label: 'Utilisateurs', icon: Shield }] : []),
-    { id: 'profile', label: 'Mon Profil', icon: User },
+    { id: 'settings', label: 'Paramètres', icon: User },
   ];
 
   if (loading) {
@@ -216,35 +217,25 @@ export default function TenantDashboard() {
                 {currentPage === 'facturation' && 'Gérez vos factures et devis'}
                 {currentPage === 'users' && 'Gérez les accès utilisateurs'}
                 {currentPage === 'profile' && 'Gérez votre profil'}
+                {currentPage === 'settings' && 'Gérez les paramètres de votre entreprise'}
               </p>
             </div>
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto bg-slate-50">
-          {currentPage === 'interventions' ? (
-            <InterventionsPage />
-          ) : currentPage === 'services' ? (
-            <ServicesPage />
-          ) : currentPage === 'facturation' ? (
-            <FacturationPage />
-          ) : currentPage === 'dashboard' ? (
-            can.manageUsers ? ( // Simplification: TENANT_ADMIN has manageUsers
-              <AdminOverview onNavigate={(page) => setCurrentPage(page as any)} />
-            ) : (
-              <StaffOverview onNavigate={(page) => setCurrentPage(page as any)} />
-            )
-          ) : currentPage === 'planning' ? (
-            <PlanningPage />
-          ) : currentPage === 'clients' ? (
-            <ClientsPage onBack={() => setCurrentPage('dashboard')} />
-          ) : currentPage === 'profile' ? (
-            <ProfileSettings />
-          ) : currentPage === 'users' ? (
-            <UsersManagementPage />
-          ) : (
-            <VehiclesPage />
+          {currentPage === 'dashboard' && (
+            profile?.role === 'TENANT_ADMIN' ? <AdminOverview /> : <StaffOverview />
           )}
+          {currentPage === 'clients' && <ClientsPage />}
+          {currentPage === 'vehicles' && <VehiclesPage />}
+          {currentPage === 'planning' && <PlanningPage />}
+          {currentPage === 'services' && <ServicesPage />}
+          {currentPage === 'interventions' && <InterventionsPage />}
+          {currentPage === 'facturation' && <FacturationPage />}
+          {currentPage === 'users' && <UsersManagementPage />}
+          {currentPage === 'profile' && <ProfileSettings />}
+          {currentPage === 'settings' && <SettingsPage />}
         </main>
       </div>
     </div>
